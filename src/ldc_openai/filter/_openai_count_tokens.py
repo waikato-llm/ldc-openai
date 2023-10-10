@@ -26,7 +26,7 @@ class OpenAICountTokens(Filter):
         :type encoding: str
         :param model: the model to get the encoding for, eg gpt-4, gpt-3.5-turbo, text-davinci-002, ...
         :type model: str
-        :param location: in which part of the data to look for the macrons
+        :param location: which part of the data to count the tokens
         :type location: str
         :param languages: the languages to restrict the check to, None to check all
         :type languages: list
@@ -105,7 +105,7 @@ class OpenAICountTokens(Filter):
         parser = super()._create_argparser()
         parser.add_argument("-e", "--encoding", type=str, default=None, help="The name of the encoding to use, e.g., cl100k_base, p50k_base, r50k_base.", required=False)
         parser.add_argument("-m", "--model", type=str, default=None, help="The name of the model to determine the encoding from, e.g., gpt-4, gpt-3.5-turbo, text-davinci-002", required=False)
-        parser.add_argument("-L", "--location", choices=LOCATIONS, default=LOCATION_ANY, help="Where to look for the macons; pairs: " + ",".join(LOCATIONS_PAIRS) + ", pretrain: " + ",".join(LOCATIONS_PRETRAIN) + ", translation: " + ",".join(LOCATIONS_PRETRAIN))
+        parser.add_argument("-L", "--location", choices=LOCATIONS, default=LOCATION_ANY, help="Which data use for counting tokens; pairs: " + ",".join(LOCATIONS_PAIRS) + ", pretrain: " + ",".join(LOCATIONS_PRETRAIN) + ", translation: " + ",".join(LOCATIONS_PRETRAIN))
         parser.add_argument("-g", "--language", type=str, help="The languages to inspect; inspects all if not specified", required=False, nargs="*")
         parser.add_argument("-p", "--price_per_1k_tokens", default=None, type=float, help="The cost per 1000 tokens", required=False)
         return parser

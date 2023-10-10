@@ -31,7 +31,7 @@ optional arguments:
                         e.g., gpt-4, gpt-3.5-turbo, text-davinci-002 (default:
                         None)
   -L {any,instruction,input,output,content}, --location {any,instruction,input,output,content}
-                        Where to look for the macons; pairs:
+                        Which data use for counting tokens; pairs:
                         any,instruction,input,output, pretrain: any,content,
                         translation: any,content (default: any)
   -g [LANGUAGE [LANGUAGE ...]], --language [LANGUAGE [LANGUAGE ...]]
