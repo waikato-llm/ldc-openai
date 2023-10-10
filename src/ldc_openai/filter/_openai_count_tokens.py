@@ -18,7 +18,7 @@ class OpenAICountTokens(Filter):
     """
 
     def __init__(self, encoding: str = None, model: str = None, prompt: str = None, price_per_1k_tokens: float = None,
-                 location: str = LOCATION_ANY, languages: List[str] = None,
+                 max_tokens: int = -1, location: str = LOCATION_ANY, languages: List[str] = None,
                  logger_name: str = None, logging_level: str = LOGGING_WARN):
         """
         Initializes the filter. Either encoding or model need to be provided.
@@ -31,6 +31,8 @@ class OpenAICountTokens(Filter):
         :type prompt: str
         :param price_per_1k_tokens: the price for 1000 tokens
         :type price_per_1k_tokens: float
+        :param max_tokens: the maximum number of tokens to process, unlimited if <1
+        :type max_tokens: int
         :param location: which part of the data to count the tokens
         :type location: str
         :param languages: the languages to restrict the check to, None to check all
@@ -49,11 +51,13 @@ class OpenAICountTokens(Filter):
         self.model = model
         self.prompt = prompt
         self.price_per_1k_tokens = price_per_1k_tokens
+        self.max_tokens = max_tokens
         self.location = location
         self.languages = languages
         self._count = 0
         self._encoding = None
         self._count_prompt = 0
+        self._max_tokens_reached = False
 
     def name(self) -> str:
         """
@@ -71,7 +75,9 @@ class OpenAICountTokens(Filter):
         :return: the description
         :rtype: str
         """
-        return "Counts tokens in text using the specified encoding instance determined from the name of either encoding or model."
+        return "Counts tokens in text using the specified encoding instance determined from the name of either " \
+               + "encoding or model. When specifying a maximum number of tokens, the filter no longer forwards " \
+               + "any data once that threshold has been reached."
 
     def domains(self) -> List[str]:
         """
@@ -112,6 +118,7 @@ class OpenAICountTokens(Filter):
         parser.add_argument("-m", "--model", type=str, default=None, help="The name of the model to determine the encoding from, e.g., gpt-4, gpt-3.5-turbo, text-davinci-002", required=False)
         parser.add_argument("-p", "--prompt", default=None, type=str, help="The prompt to use with each query (its # of tokens gets added to the total)", required=False)
         parser.add_argument("-t", "--price_per_1k_tokens", metavar="PRICE", default=None, type=float, help="The cost per 1000 tokens", required=False)
+        parser.add_argument("-M", "--max_tokens", metavar="MAX", default=-1, type=int, help="The maximum number of tokens to process, unlimited when <1", required=False)
         parser.add_argument("-L", "--location", choices=LOCATIONS, default=LOCATION_ANY, help="Which data use for counting tokens; pairs: " + ",".join(LOCATIONS_PAIRS) + ", pretrain: " + ",".join(LOCATIONS_PRETRAIN) + ", translation: " + ",".join(LOCATIONS_PRETRAIN))
         parser.add_argument("-g", "--language", type=str, help="The languages to inspect; inspects all if not specified", required=False, nargs="*")
         return parser
@@ -128,6 +135,7 @@ class OpenAICountTokens(Filter):
         self.model = ns.model
         self.prompt = ns.prompt
         self.price_per_1k_tokens = ns.price_per_1k_tokens
+        self.max_tokens = ns.max_tokens
         self.location = ns.location
         self.languages = ns.language
 
@@ -167,7 +175,7 @@ class OpenAICountTokens(Filter):
         :param data: the record to process
         :return: the potentially updated record or None if to drop
         """
-        result = copy.deepcopy(data)
+        result = data
 
         if isinstance(result, PairData):
             if self.location in [LOCATION_INSTRUCTION, LOCATION_ANY]:
@@ -190,7 +198,14 @@ class OpenAICountTokens(Filter):
         else:
             raise Exception("Unhandled data type: %s" % str(type(result)))
 
-        return result
+        # reached maximum? -> suppress data
+        if (self.max_tokens > 0) and (self._count > self.max_tokens):
+            if not self._max_tokens_reached:
+                self.logger().info("max # tokens (= %d) reached!" % self.max_tokens)
+                self._max_tokens_reached = True
+            return None
+        else:
+            return result
 
     def finalize(self):
         """
@@ -200,6 +215,8 @@ class OpenAICountTokens(Filter):
         if self._count_prompt > 0:
             self.logger().info("# tokens (prompt): %d" % self._count_prompt)
         self.logger().info("# tokens: %d" % self._count)
+        if self._max_tokens_reached:
+            self.logger().info("max # tokens (= %d) reached!" % self.max_tokens)
         if self.price_per_1k_tokens is not None:
             price = self._count / 1000 * self.price_per_1k_tokens
             self.logger().info("total price (1k tokens = %f): %f" % (self.price_per_1k_tokens, price))
