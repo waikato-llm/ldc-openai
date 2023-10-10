@@ -1,5 +1,6 @@
 # ldc-openai
-llm-dataset-converter plugins for OpenAI.
+[llm-dataset-converter](https://github.com/waikato-datamining/llm-dataset-converter) 
+plugins for [OpenAI](https://openai.com/).
 
 
 ## Installation
