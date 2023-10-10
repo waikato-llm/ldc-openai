@@ -17,8 +17,9 @@ class OpenAICountTokens(Filter):
     Counts text tokens for OpenAI.
     """
 
-    def __init__(self, encoding: str = None, model: Optional[str] = None, location: str = LOCATION_ANY,
-                 languages: List[str] = None, price_per_1k_tokens: float = None, logger_name: str = None, logging_level: str = LOGGING_WARN):
+    def __init__(self, encoding: str = None, model: str = None, prompt: str = None, price_per_1k_tokens: float = None,
+                 location: str = LOCATION_ANY, languages: List[str] = None,
+                 logger_name: str = None, logging_level: str = LOGGING_WARN):
         """
         Initializes the filter. Either encoding or model need to be provided.
 
@@ -26,12 +27,14 @@ class OpenAICountTokens(Filter):
         :type encoding: str
         :param model: the model to get the encoding for, eg gpt-4, gpt-3.5-turbo, text-davinci-002, ...
         :type model: str
+        :param prompt: the prompt to use for each query (addings its # of tokens to the total with each string)
+        :type prompt: str
+        :param price_per_1k_tokens: the price for 1000 tokens
+        :type price_per_1k_tokens: float
         :param location: which part of the data to count the tokens
         :type location: str
         :param languages: the languages to restrict the check to, None to check all
         :type languages: list
-        :param price_per_1k_tokens: the price for 1000 tokens
-        :type price_per_1k_tokens: float
         :param logger_name: the name to use for the logger
         :type logger_name: str
         :param logging_level: the logging level to use
@@ -44,11 +47,13 @@ class OpenAICountTokens(Filter):
 
         self.encoding = encoding
         self.model = model
+        self.prompt = prompt
+        self.price_per_1k_tokens = price_per_1k_tokens
         self.location = location
         self.languages = languages
-        self.price_per_1k_tokens = price_per_1k_tokens
         self._count = 0
         self._encoding = None
+        self._count_prompt = 0
 
     def name(self) -> str:
         """
@@ -105,9 +110,10 @@ class OpenAICountTokens(Filter):
         parser = super()._create_argparser()
         parser.add_argument("-e", "--encoding", type=str, default=None, help="The name of the encoding to use, e.g., cl100k_base, p50k_base, r50k_base.", required=False)
         parser.add_argument("-m", "--model", type=str, default=None, help="The name of the model to determine the encoding from, e.g., gpt-4, gpt-3.5-turbo, text-davinci-002", required=False)
+        parser.add_argument("-p", "--prompt", default=None, type=str, help="The prompt to use with each query (its # of tokens gets added to the total)", required=False)
+        parser.add_argument("-t", "--price_per_1k_tokens", metavar="PRICE", default=None, type=float, help="The cost per 1000 tokens", required=False)
         parser.add_argument("-L", "--location", choices=LOCATIONS, default=LOCATION_ANY, help="Which data use for counting tokens; pairs: " + ",".join(LOCATIONS_PAIRS) + ", pretrain: " + ",".join(LOCATIONS_PRETRAIN) + ", translation: " + ",".join(LOCATIONS_PRETRAIN))
         parser.add_argument("-g", "--language", type=str, help="The languages to inspect; inspects all if not specified", required=False, nargs="*")
-        parser.add_argument("-p", "--price_per_1k_tokens", default=None, type=float, help="The cost per 1000 tokens", required=False)
         return parser
 
     def _apply_args(self, ns: argparse.Namespace):
@@ -120,9 +126,10 @@ class OpenAICountTokens(Filter):
         super()._apply_args(ns)
         self.encoding = ns.encoding
         self.model = ns.model
+        self.prompt = ns.prompt
+        self.price_per_1k_tokens = ns.price_per_1k_tokens
         self.location = ns.location
         self.languages = ns.language
-        self.price_per_1k_tokens = ns.price_per_1k_tokens
 
     def initialize(self):
         """
@@ -139,6 +146,8 @@ class OpenAICountTokens(Filter):
             self._encoding = tiktoken.get_encoding(self.encoding)
         else:
             self._encoding = tiktoken.encoding_for_model(self.model)
+        if (self.prompt is not None) and (len(self.prompt) > 0):
+            self._count_prompt = self._count_tokens(self.prompt)
 
     def _count_tokens(self, s: str) -> int:
         """
@@ -162,22 +171,22 @@ class OpenAICountTokens(Filter):
 
         if isinstance(result, PairData):
             if self.location in [LOCATION_INSTRUCTION, LOCATION_ANY]:
-                self._count += self._count_tokens(result.instruction)
+                self._count += self._count_tokens(result.instruction) + self._count_prompt
             if self.location in [LOCATION_INPUT, LOCATION_ANY]:
-                self._count += self._count_tokens(result.input)
+                self._count += self._count_tokens(result.input) + self._count_prompt
             if self.location in [LOCATION_OUTPUT, LOCATION_ANY]:
-                self._count += self._count_tokens(result.output)
+                self._count += self._count_tokens(result.output) + self._count_prompt
         elif isinstance(result, PretrainData):
             if self.location in [LOCATION_CONTENT, LOCATION_ANY]:
-                self._count += self._count_tokens(result.content)
+                self._count += self._count_tokens(result.content) + self._count_prompt
         elif isinstance(result, TranslationData):
             if self.languages is None:
                 for k in result.translations:
-                    self._count += self._count_tokens(result.translations[k])
+                    self._count += self._count_tokens(result.translations[k]) + self._count_prompt
             else:
                 for lang in self.languages:
                     if lang in result.translations:
-                        self._count += self._count_tokens(result.translations[lang])
+                        self._count += self._count_tokens(result.translations[lang]) + self._count_prompt
         else:
             raise Exception("Unhandled data type: %s" % str(type(result)))
 
@@ -188,6 +197,8 @@ class OpenAICountTokens(Filter):
         Finishes the processing, e.g., for closing files or databases.
         """
         super().finalize()
+        if self._count_prompt > 0:
+            self.logger().info("# tokens (prompt): %d" % self._count_prompt)
         self.logger().info("# tokens: %d" % self._count)
         if self.price_per_1k_tokens is not None:
             price = self._count / 1000 * self.price_per_1k_tokens
