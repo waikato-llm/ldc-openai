@@ -168,7 +168,7 @@ class OpenAICountTokens(Filter):
         """
         return len(self._encoding.encode(s))
 
-    def process(self, data):
+    def _do_process(self, data):
         """
         Processes the data record.
 
