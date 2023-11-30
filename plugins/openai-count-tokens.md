@@ -7,7 +7,7 @@
 Counts tokens in text using the specified encoding instance determined from the name of either encoding or model. When specifying a maximum number of tokens, the filter no longer forwards any data once that threshold has been reached.
 
 ```
-usage: openai-count-tokens [-h] [-l {DEBUG,INFO,WARN,ERROR,CRITICAL}]
+usage: openai-count-tokens [-h] [-l {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
                            [-N LOGGER_NAME] [-e ENCODING] [-m MODEL]
                            [-p PROMPT] [-t PRICE] [-M MAX]
                            [-L {any,instruction,input,output,content}]
@@ -20,8 +20,8 @@ reached.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -l {DEBUG,INFO,WARN,ERROR,CRITICAL}, --logging_level {DEBUG,INFO,WARN,ERROR,CRITICAL}
-                        The logging level to use (default: WARN)
+  -l {DEBUG,INFO,WARNING,ERROR,CRITICAL}, --logging_level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+                        The logging level to use. (default: WARN)
   -N LOGGER_NAME, --logger_name LOGGER_NAME
                         The custom name to use for the logger, uses the plugin
                         name by default (default: None)
