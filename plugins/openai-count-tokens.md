@@ -10,7 +10,7 @@ Counts tokens in text using the specified encoding instance determined from the 
 usage: openai-count-tokens [-h] [-l {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
                            [-N LOGGER_NAME] [-e ENCODING] [-m MODEL]
                            [-p PROMPT] [-t PRICE] [-M MAX]
-                           [-L {any,instruction,input,output,content}]
+                           [-L [{any,instruction,input,output,content} [{any,instruction,input,output,content} ...]]]
                            [-g [LANGUAGE [LANGUAGE ...]]]
 
 Counts tokens in text using the specified encoding instance determined from
@@ -40,7 +40,7 @@ optional arguments:
   -M MAX, --max_tokens MAX
                         The maximum number of tokens to process, unlimited
                         when <1 (default: -1)
-  -L {any,instruction,input,output,content}, --location {any,instruction,input,output,content}
+  -L [{any,instruction,input,output,content} [{any,instruction,input,output,content} ...]], --location [{any,instruction,input,output,content} [{any,instruction,input,output,content} ...]]
                         Which data use for counting tokens; pairs:
                         any,instruction,input,output, pretrain: any,content,
                         translation: any,content (default: any)

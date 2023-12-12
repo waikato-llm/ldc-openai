@@ -1,11 +1,11 @@
 import argparse
 import tiktoken
-from typing import List
+from typing import List, Union
 
 from wai.logging import LOGGING_WARNING
 from ldc.core import DOMAIN_PAIRS, DOMAIN_PRETRAIN, DOMAIN_TRANSLATION
 from ldc.core import LOCATION_ANY, LOCATION_INSTRUCTION, LOCATION_INPUT, LOCATION_OUTPUT, LOCATION_CONTENT, \
-    LOCATIONS, LOCATIONS_PAIRS, LOCATIONS_PRETRAIN
+    LOCATIONS, LOCATIONS_PAIRS, LOCATIONS_PRETRAIN, locations_match
 from ldc.filter import Filter
 from ldc.pretrain import PretrainData
 from ldc.supervised.pairs import PairData
@@ -18,7 +18,7 @@ class OpenAICountTokens(Filter):
     """
 
     def __init__(self, encoding: str = None, model: str = None, prompt: str = None, price_per_1k_tokens: float = None,
-                 max_tokens: int = -1, location: str = LOCATION_ANY, languages: List[str] = None,
+                 max_tokens: int = -1, location: Union[str, List[str]] = LOCATION_ANY, languages: List[str] = None,
                  logger_name: str = None, logging_level: str = LOGGING_WARNING):
         """
         Initializes the filter. Either encoding or model need to be provided.
@@ -34,7 +34,7 @@ class OpenAICountTokens(Filter):
         :param max_tokens: the maximum number of tokens to process, unlimited if <1
         :type max_tokens: int
         :param location: which part of the data to count the tokens
-        :type location: str
+        :type location: str or list
         :param languages: the languages to restrict the check to, None to check all
         :type languages: list
         :param logger_name: the name to use for the logger
@@ -119,7 +119,7 @@ class OpenAICountTokens(Filter):
         parser.add_argument("-p", "--prompt", default=None, type=str, help="The prompt to use with each query (its # of tokens gets added to the total)", required=False)
         parser.add_argument("-t", "--price_per_1k_tokens", metavar="PRICE", default=None, type=float, help="The cost per 1000 tokens", required=False)
         parser.add_argument("-M", "--max_tokens", metavar="MAX", default=-1, type=int, help="The maximum number of tokens to process, unlimited when <1", required=False)
-        parser.add_argument("-L", "--location", choices=LOCATIONS, default=LOCATION_ANY, help="Which data use for counting tokens; pairs: " + ",".join(LOCATIONS_PAIRS) + ", pretrain: " + ",".join(LOCATIONS_PRETRAIN) + ", translation: " + ",".join(LOCATIONS_PRETRAIN))
+        parser.add_argument("-L", "--location", choices=LOCATIONS, nargs="*", default=LOCATION_ANY, help="Which data use for counting tokens; pairs: " + ",".join(LOCATIONS_PAIRS) + ", pretrain: " + ",".join(LOCATIONS_PRETRAIN) + ", translation: " + ",".join(LOCATIONS_PRETRAIN))
         parser.add_argument("-g", "--language", type=str, help="The languages to inspect; inspects all if not specified", required=False, nargs="*")
         return parser
 
@@ -147,6 +147,8 @@ class OpenAICountTokens(Filter):
 
         if self.languages is not None:
             self.languages = [x.lower() for x in self.languages]
+        if isinstance(self.location, str):
+            self.location = [self.location]
 
         if (self.encoding is None) and (self.model is None):
             raise Exception("Either name of encoding or model must be provided!")
@@ -178,14 +180,14 @@ class OpenAICountTokens(Filter):
         result = data
 
         if isinstance(result, PairData):
-            if self.location in [LOCATION_INSTRUCTION, LOCATION_ANY]:
+            if locations_match(self.location, LOCATION_INSTRUCTION):
                 self._count += self._count_tokens(result.instruction) + self._count_prompt
-            if self.location in [LOCATION_INPUT, LOCATION_ANY]:
+            if locations_match(self.location, LOCATION_INPUT):
                 self._count += self._count_tokens(result.input) + self._count_prompt
-            if self.location in [LOCATION_OUTPUT, LOCATION_ANY]:
+            if locations_match(self.location, LOCATION_OUTPUT):
                 self._count += self._count_tokens(result.output) + self._count_prompt
         elif isinstance(result, PretrainData):
-            if self.location in [LOCATION_CONTENT, LOCATION_ANY]:
+            if locations_match(self.location, LOCATION_CONTENT):
                 self._count += self._count_tokens(result.content) + self._count_prompt
         elif isinstance(result, TranslationData):
             if self.languages is None:
