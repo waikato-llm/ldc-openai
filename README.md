@@ -12,7 +12,4 @@ pip install git+https://github.com/waikato-llm/ldc-openai.git
 
 ## Plugins
 
-Filters:
-
-* [openai-count-tokens](plugins/openai-count-tokens.md)
-
+See [here](plugins/README.md) for an overview of all plugins.
