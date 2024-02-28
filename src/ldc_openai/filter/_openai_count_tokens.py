@@ -3,11 +3,12 @@ import tiktoken
 from typing import List, Union
 
 from wai.logging import LOGGING_WARNING
-from ldc.core import DOMAIN_PAIRS, DOMAIN_PRETRAIN, DOMAIN_TRANSLATION
+from ldc.core import DOMAIN_PAIRS, DOMAIN_PRETRAIN, DOMAIN_TRANSLATION, DOMAIN_CLASSIFICATION
 from ldc.core import LOCATION_ANY, LOCATION_INSTRUCTION, LOCATION_INPUT, LOCATION_OUTPUT, LOCATION_CONTENT, \
-    LOCATIONS, LOCATIONS_PAIRS, LOCATIONS_PRETRAIN, LOCATIONS_TRANSLATION, locations_match
+    LOCATION_TEXT, LOCATIONS, locations_match, add_location_argument
 from ldc.api import Filter
 from ldc.api.pretrain import PretrainData
+from ldc.api.supervised.classification import ClassificationData
 from ldc.api.supervised.pairs import PairData
 from ldc.api.translation import TranslationData
 
@@ -86,7 +87,7 @@ class OpenAICountTokens(Filter):
         :return: the domains
         :rtype: list
         """
-        return [DOMAIN_PAIRS, DOMAIN_PRETRAIN, DOMAIN_TRANSLATION]
+        return [DOMAIN_PAIRS, DOMAIN_PRETRAIN, DOMAIN_TRANSLATION, DOMAIN_CLASSIFICATION]
 
     def accepts(self) -> List:
         """
@@ -95,7 +96,7 @@ class OpenAICountTokens(Filter):
         :return: the list of classes
         :rtype: list
         """
-        return [PairData, PretrainData, TranslationData]
+        return [PairData, PretrainData, TranslationData, ClassificationData]
 
     def generates(self) -> List:
         """
@@ -104,7 +105,7 @@ class OpenAICountTokens(Filter):
         :return: the list of classes
         :rtype: list
         """
-        return [PairData, PretrainData, TranslationData]
+        return [PairData, PretrainData, TranslationData, ClassificationData]
 
     def _create_argparser(self) -> argparse.ArgumentParser:
         """
@@ -119,7 +120,7 @@ class OpenAICountTokens(Filter):
         parser.add_argument("-p", "--prompt", default=None, type=str, help="The prompt to use with each query (its # of tokens gets added to the total)", required=False)
         parser.add_argument("-t", "--price_per_1k_tokens", metavar="PRICE", default=None, type=float, help="The cost per 1000 tokens", required=False)
         parser.add_argument("-M", "--max_tokens", metavar="MAX", default=-1, type=int, help="The maximum number of tokens to process, unlimited when <1", required=False)
-        parser.add_argument("-L", "--location", choices=LOCATIONS, nargs="*", default=LOCATION_ANY, help="Which data use for counting tokens; pairs: " + ",".join(LOCATIONS_PAIRS) + ", pretrain: " + ",".join(LOCATIONS_PRETRAIN) + ", translation: " + ",".join(LOCATIONS_TRANSLATION))
+        add_location_argument(parser, "Which data use for counting tokens")
         parser.add_argument("-g", "--language", type=str, help="The languages to inspect; inspects all if not specified", required=False, nargs="*")
         return parser
 
@@ -186,6 +187,9 @@ class OpenAICountTokens(Filter):
                 self._count += self._count_tokens(result.input) + self._count_prompt
             if locations_match(self.location, LOCATION_OUTPUT):
                 self._count += self._count_tokens(result.output) + self._count_prompt
+        elif isinstance(result, ClassificationData):
+            if locations_match(self.location, LOCATION_TEXT):
+                self._count += self._count_tokens(result.text) + self._count_prompt
         elif isinstance(result, PretrainData):
             if locations_match(self.location, LOCATION_CONTENT):
                 self._count += self._count_tokens(result.content) + self._count_prompt
