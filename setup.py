@@ -39,8 +39,8 @@ setup(
     author='Peter Reutemann',
     author_email='fracpete@waikato.ac.nz',
     entry_points={
-        "ldc.filters": [
-            "ldc-openai-filters1=ldc_openai.filter:ldc.api.Filter"
-        ]
+        "class_lister": [
+            "ldc_openai=ldc_openai.class_lister",
+        ],
     },
 )
