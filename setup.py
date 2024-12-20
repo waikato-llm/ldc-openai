@@ -13,7 +13,7 @@ def _read(f):
 
 
 setup(
-    name="ldc-openai",
+    name="ldc_openai",
     description="Python3 library containing plugins for llm-dataset-converter specific to OpenAI.",
     long_description=(
             _read('DESCRIPTION.rst') + b'\n' +
