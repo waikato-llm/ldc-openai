@@ -31,7 +31,7 @@ setup(
     },
     packages=find_namespace_packages(where='src'),
     install_requires=[
-        "llm-dataset-converter>=0.2.1",
+        "llm_dataset_converter>=0.2.1",
         "openai",
         "tiktoken",
     ],
