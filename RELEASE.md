@@ -27,7 +27,7 @@ Steps:
 
 * start new release (version: `vX.Y.Z`)
 * enter release notes, i.e., significant changes since last release
-* upload `ldc-openai-X.Y.Z.tar.gz` previously generated with `setup.py`
+* upload `ldc_openai-X.Y.Z.tar.gz` previously generated with `setup.py`
 * publish
 
 
